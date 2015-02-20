@@ -1,0 +1,35 @@
+Solving 3SAT problem with the cloud cache
+
+This system is written in the Python programming language and adopts a master-slave architecture to generate and solve 3SAT problem with the cloud cache.
+
+Usage:
+******************
+1. To use the system, first set up a redis server on the slave end. If redis is not configured, you need to make your own. (A redis source code package is included in this directory. After 'make', go to the ./redis/src/ and open redis-server)
+2. Then start the slave server by issueing the command in the terminal:python salve.py in the ./src/ directory.
+3. Next start the master by "python master.py",
+*Enabling multiple slaves requires to change the configuration in master.py.
+
+Upon the completion of the above procedures, the master is supposed to generate 3SAT problems and send the problems to the server and the server working on the problem with the help of the cache.
+
+
+System breakdown:
+******************
+master.py:
+In this file is the definition of the master. There is only one predetermined master in the system. The major functions of the master includes: 1)generating 3SAT problems for the the slaves to solve. 2) assigning tasks to slaves. 3) collect status information from the slaves. 3) other controls over slave.
+In the class of slaveServer, there are two threads, one being the working thread and the other communication thread. Working thread is responsible for generating in a pretty much random way and assigning the problem to slaves. The master does not get solutions back from the slaves. Rather, solutions are stored in the cache. In addition, problems are generated and sent periodically to the slave(about 60 problems 1 minutes in the default configuration) to prevent frequent interruptions in slave.
+
+slave.py:
+The behavior of slave is defined here. Major components include, 1)the framework of slaveServer that hosts the working and communication threads like the master. 2)the slaveCommunicationThread that received 3SAT problem from the master and other instructions and update the task list. 3)slaveWorkingThread, which extends the workingThread in network.py. The thread retrieves task from the task list, employs a instance of the Solver class to solve the problem, cache the solution, and update the task list.
+
+network.py:
+This python module provides network classes and interfaces for upper layer modules to extend or to use directly. Major components of this module are, 1) the communicationThread class and workingThread class, from which the communication and working thread of both master and slave extend, 2)the server class incorporating the communication and working thread. Server class is an abstract class defining the basic behavior and from which extend the server class of master and slave. 
+
+solver.py:
+This module defines the logic to solve 3SAT problems with the cloud cache.
+The recursionSolve behaves like merge-sort. Given a 3SAT problem, the solver will first look into the cache to check if the problem has been previously solved. If yes, the solver will just return the the result got from the cache. Otherwise, the solver split the problem into two halves like the merge sort and then query the cache with the two halves recursively. Whenever there is a cache hit, the solution returned by the cache is tested on the original problem. If it fit the original problem, then return the solution; otherwise, we continue to search. If the size of the subproblem is smaller than a predefined threshold (say, 5 clauses), the solver solve the subproblem by brute force and cache the solution. Finally, If not cache result can be found to solve the original problem, we solve the problem using brute force with bfSolver and cache the problem-solution pair in the database. 
+
+dbHelpher.py:
+This is a wrapper class for python APIs of the Redis database.
+
+
+
